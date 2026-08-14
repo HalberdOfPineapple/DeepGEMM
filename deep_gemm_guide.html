@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepGEMM — A Developer's Illustrated Guide</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#161b22; --panel2:#1c232d; --border:#2a3340;
+    --ink:#d7dde5; --dim:#8b97a6; --faint:#5c6675;
+    --accent:#4ea1ff; --accent2:#7ee787; --warn:#ffb454; --danger:#ff7b72;
+    --code-bg:#0b0e12; --kw:#ff7b72; --str:#9ee6a0; --com:#5c6675; --type:#79c0ff; --fn:#d2a8ff;
+    --sm90:#f0883e; --sm100:#a371f7;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:15.5px;
+  }
+  /* layout */
+  .wrap{display:flex;align-items:flex-start;max-width:1320px;margin:0 auto}
+  nav.toc{
+    position:sticky; top:0; height:100vh; width:268px; flex:0 0 268px;
+    overflow-y:auto; padding:22px 16px; border-right:1px solid var(--border);
+    background:#0c0f13; font-size:13.5px;
+  }
+  nav.toc h2{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); margin:0 0 10px}
+  nav.toc ol{list-style:none; padding:0; margin:0 0 18px; counter-reset:toc}
+  nav.toc ol li{margin:3px 0}
+  nav.toc ol ol{margin-left:12px}
+  nav.toc a{color:var(--dim); text-decoration:none; display:block; padding:3px 6px; border-radius:5px}
+  nav.toc a:hover{background:var(--panel); color:var(--ink)}
+  nav.toc .sub{font-size:12.5px; color:var(--faint); padding-left:14px}
+  main{flex:1; min-width:0; padding:42px 44px 120px}
+  /* hero */
+  .hero{
+    border:1px solid var(--border); border-radius:16px; padding:38px 40px; margin-bottom:42px;
+    background:radial-gradient(1200px 300px at 20% -10%, #1a2740 0%, transparent 60%),
+               linear-gradient(180deg,#141a22,#10141a);
+  }
+  .hero h1{margin:0 0 6px; font-size:34px; letter-spacing:-.01em}
+  .hero .tag{color:var(--accent); font-family:"SFMono",ui-monospace,Consolas,monospace; font-size:14px}
+  .hero p.lead{color:var(--dim); max-width:780px; margin:14px 0 0}
+  .badges{margin-top:18px; display:flex; gap:8px; flex-wrap:wrap}
+  .badge{font-size:12.5px; padding:4px 11px; border-radius:999px; border:1px solid var(--border); color:var(--dim); background:var(--panel)}
+  .badge.b1{color:var(--sm90); border-color:#5a3a24}
+  .badge.b2{color:var(--sm100); border-color:#3d2c5a}
+  /* sections */
+  section{margin:0 0 52px; scroll-margin-top:20px}
+  h2.sec{font-size:24px; margin:0 0 6px; padding-bottom:10px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px}
+  h2.sec .num{color:var(--faint); font-size:15px; font-family:"SFMono",ui-monospace,monospace}
+  h3{font-size:18.5px; margin:30px 0 8px; color:var(--ink)}
+  h4{font-size:15.5px; margin:20px 0 6px; color:var(--accent)}
+  p{margin:8px 0}
+  .lead-sec{color:var(--dim); margin:0 0 20px; max-width:920px}
+  ul,ol{padding-left:22px}
+  li{margin:4px 0}
+  code, .c{font-family:"SFMono",ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-size:13.2px}
+  a code{color:var(--accent)}
+  /* code blocks */
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; overflow-x:auto; margin:14px 0; font-size:13px; line-height:1.55;
+  }
+  pre code{color:#c9d1d9}
+  .kw{color:var(--kw)} .str{color:var(--str)} .com{color:var(--com); font-style:italic}
+  .type{color:var(--type)} .fn{color:var(--fn)} .num{color:#e3b341}
+  .cap{font-size:12.5px; color:var(--faint); margin:-6px 0 16px; padding-left:2px}
+  .cap b{color:var(--dim)}
+  /* file refs */
+  .ref{font-family:"SFMono",ui-monospace,Consolas,monospace; font-size:12.5px; color:var(--accent2); background:#11261a; border:1px solid #1f3a27; padding:1px 6px; border-radius:5px; white-space:nowrap}
+  /* callouts */
+  .callout{border-left:3px solid var(--accent); background:var(--panel); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0}
+  .callout.warn{border-color:var(--warn)} .callout.key{border-color:var(--accent2)}
+  .callout .ttl{font-weight:600; color:var(--ink); font-size:13.5px; margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em}
+  /* cards */
+  .grid{display:grid; gap:14px; margin:18px 0}
+  .card{border:1px solid var(--border); border-radius:12px; background:var(--panel); padding:16px 18px}
+  .card h4{margin:0 0 6px; color:var(--accent)}
+  .card .path{font-family:"SFMono",monospace; font-size:12px; color:var(--accent2); margin-bottom:8px}
+  .card p{margin:6px 0; color:var(--dim); font-size:14px}
+  .g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:1080px){ .g3{grid-template-columns:1fr 1fr} }
+  @media(max-width:980px){ .wrap{flex-direction:column} nav.toc{position:relative;height:auto;width:auto;border-right:none;border-bottom:1px solid var(--border)} main{padding:30px 22px} .g2,.g3{grid-template-columns:1fr} }
+  /* tables */
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top}
+  th{color:var(--accent); font-weight:600; background:var(--panel)}
+  td code{font-size:12.5px}
+  tr:hover td{background:#12161c}
+  /* glossary */
+  dl.gloss{display:grid; grid-template-columns:200px 1fr; gap:8px 18px; margin:14px 0}
+  dl.gloss dt{color:var(--accent2); font-family:"SFMono",monospace; font-size:13px; font-weight:600}
+  dl.gloss dd{margin:0; color:var(--dim)}
+  /* steps */
+  .step{display:flex; gap:16px; margin:18px 0}
+  .step .n{flex:0 0 38px; height:38px; border-radius:50%; background:var(--panel2); border:1px solid var(--border); color:var(--accent); font-weight:700; display:flex; align-items:center; justify-content:center; font-size:16px; font-family:"SFMono",monospace}
+  .step .b{flex:1}
+  .step .b h4{margin:6px 0 4px}
+  .step .b p{margin:6px 0}
+  /* pipeline diagram bits reused */
+  .tag-sm90{color:var(--sm90)} .tag-sm100{color:var(--sm100)}
+  .chip{display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:4px; border:1px solid var(--border); color:var(--dim); margin:0 3px}
+  .chip.sm90{color:var(--sm90); border-color:#5a3a24} .chip.sm100{color:var(--sm100); border-color:#3d2c5a}
+  hr.sep{border:none; border-top:1px solid var(--border); margin:34px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">1. High-Level Overview</a></li>
+    <li><a href="#arch">2. Architecture at a Glance</a></li>
+    <li><a href="#repo">3. Repository Map</a></li>
+    <li><a href="#build">4. Build &amp; Install Flow</a></li>
+    <li><a href="#components">5. Per-Component Analysis</a></li>
+    <li class="sub"><a href="#c-python">5.1 Python Package</a></li>
+    <li class="sub"><a href="#c-apis">5.2 C++ API Layer</a></li>
+    <li class="sub"><a href="#c-jit">5.3 JIT Compiler</a></li>
+    <li class="sub"><a href="#c-heur">5.4 Heuristics Engine</a></li>
+    <li class="sub"><a href="#c-launch">5.5 Host Launchers</a></li>
+    <li class="sub"><a href="#c-device">5.6 Device Kernels</a></li>
+    <li class="sub"><a href="#c-mega">5.7 Mega MoE</a></li>
+    <li class="sub"><a href="#c-utils">5.8 Utils &amp; Testing</a></li>
+    <li><a href="#walkthrough">6. Core Workflow Walkthrough</a></li>
+    <li class="sub"><a href="#wt-1">6.1 Python Entry</a></li>
+    <li class="sub"><a href="#wt-2">6.2 Dispatch &amp; SF Layout</a></li>
+    <li class="sub"><a href="#wt-3">6.3 Heuristic Tuning</a></li>
+    <li class="sub"><a href="#wt-4">6.4 TMA Descriptors</a></li>
+    <li class="sub"><a href="#wt-5">6.5 JIT Code Gen</a></li>
+    <li class="sub"><a href="#wt-6">6.6 Compile &amp; Cache</a></li>
+    <li class="sub"><a href="#wt-7">6.7 Kernel Launch</a></li>
+    <li class="sub"><a href="#wt-8">6.8 Device Kernel</a></li>
+    <li><a href="#mega-walk">7. Mega MoE Walkthrough</a></li>
+    <li><a href="#glossary">8. Terminology Glossary</a></li>
+    <li><a href="#env">9. Environment Variables</a></li>
+    <li><a href="#explore">10. How to Explore Further</a></li>
+  </ol>
+  <h2 style="margin-top:8px">Key files</h2>
+  <ol>
+    <li><a href="#c-apis"><code>gemm.hpp</code></a></li>
+    <li><a href="#c-jit"><code>compiler.hpp</code></a></li>
+    <li><a href="#c-heur"><code>sm90.hpp</code></a></li>
+    <li><a href="#c-launch"><code>sm90_fp8_gemm_1d1d.hpp</code></a></li>
+    <li><a href="#c-device"><code>sm90_fp8_gemm_1d1d.cuh</code></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ===================== HERO ===================== -->
+<div class="hero">
+  <div class="tag">deepseek-ai / DeepGEMM · v2.6.1</div>
+  <h1>DeepGEMM — A Developer's Illustrated Guide</h1>
+  <p class="lead">
+    DeepGEMM is a unified, high-performance <b>tensor-core kernel library</b> for the matrix primitives that power modern
+    large language models — FP8/FP4/BF16 GEMMs, fused MoE with overlapped NVLink communication ("Mega MoE"),
+    MQA scoring for the lightning indexer, and HyperConnection. This guide is written for a CS graduate who is
+    <em>not</em> a GPU-kernel expert: it explains the architecture, walks through the core GEMM path from Python call
+    to hardware instruction, and defines the jargon along the way.
+  </p>
+  <div class="badges">
+    <span class="badge b1">Hopper SM90</span>
+    <span class="badge b2">Blackwell SM100</span>
+    <span class="badge">Runtime JIT</span>
+    <span class="badge">FP8 / FP4 / BF16</span>
+    <span class="badge">TMA + WGMMA/UMMA</span>
+    <span class="badge">Mega MoE</span>
+  </div>
+</div>
+
+<!-- ===================== 1. OVERVIEW ===================== -->
+<section id="overview">
+  <h2 class="sec"><span class="num">01</span> High-Level Overview</h2>
+  <p class="lead-sec">
+    The single sentence: DeepGEMM computes <code>D = C + A @ B</code> (and grouped/fused variants) on NVIDIA Hopper/Blackwell
+    GPUs at near-peak tensor-core throughput, by generating one specialized CUDA kernel per problem shape at runtime.
+  </p>
+
+  <div class="grid g3">
+    <div class="card">
+      <h4>What problem it solves</h4>
+      <p>An LLM spends almost all its FLOPs in matrix multiplies — attention projections, FFN/MoE expert layers, and the
+      tiny "indexer" scoring kernels. Doing these in FP8/FP4 (not BF16/FP16) doubles-to-quadruples the effective throughput
+      and halves-to-quarters the weight memory. But FP8/FP4 GEMMs require <em>per-block scaling-factor dequantization</em>
+      fused into the kernel, which cuBLAS does not expose cleanly. DeepGEMM ships purpose-built kernels for exactly this.</p>
+    </div>
+    <div class="card">
+      <h4>How it is organized</h4>
+      <p>A thin Python package wraps a C++ extension (<code>_C</code>). The C++ layer never ships compiled kernels — instead
+      it <em>generates CUDA source strings at runtime</em>, compiles them with <code>nvcc</code>/<code>nvrtc</code>, caches the
+      <code>.cubin</code> on disk, and loads it as a <code>CUfunction</code>. This "JIT everything" design keeps the
+      install footprint tiny while letting each (shape, dtype, tile-config) get a kernel specialized to its constants.</p>
+    </div>
+    <div class="card">
+      <h4>What it is not</h4>
+      <p>It is <em>not</em> a general linear-algebra library. It supports a fixed set of memory layouts (NT/TN/NN/TT), fixed
+      output dtypes (BF16 or FP32), and fixed scaling-factor "recipes". Input casting (BF16→FP8), transposition, and
+      scale-factor quantization are left to the user (though helpers are provided). The focus is the kernel itself.</p>
+    </div>
+  </div>
+
+  <div class="callout key">
+    <div class="ttl">The unifying idea</div>
+    <p style="margin:0;color:var(--ink)">
+      A GEMM is tiled into blocks of <code>(BLOCK_M × BLOCK_N × BLOCK_K)</code>. On each K-tile, TMA asynchronously
+      copies A/B blocks (and their scaling factors) into <em>shared memory</em>; the tensor cores (WGMMA on Hopper,
+      UMMA on Blackwell) consume them; an <em>epilogue</em> multiplies in the per-block FP8/FP4 scale factors and
+      writes the BF16/FP32 result back via TMA. The whole loop is <em>software-pipelined</em> with async barriers so
+      memory copy and math overlap. DeepGEMM's job is to pick the right tiles and generate the exact code for it.
+    </p>
+  </div>
+
+  <h3>The kernel families</h3>
+  <table>
+    <tr><th>Family</th><th>Python entry</th><th>What it computes</th><th>Where</th></tr>
+    <tr><td>Dense GEMM</td><td><code>fp8_gemm_nt/nn/tn/tt</code></td><td><code>D = C + A @ B</code>, one matrix pair</td><td><span class="ref">apis/gemm.hpp</span></td></tr>
+    <tr><td>M-grouped GEMM (contiguous)</td><td><code>m_grouped_fp8_gemm_nt_contiguous</code></td><td>Many experts share A's M-axis; N,K fixed (MoE fwd/prefill)</td><td><span class="ref">apis/gemm.hpp:166</span></td></tr>
+    <tr><td>M-grouped GEMM (masked)</td><td><code>m_grouped_fp8_gemm_nt_masked</code></td><td>Decoding: only valid token rows computed (CUDA-graph friendly)</td><td><span class="ref">apis/gemm.hpp:250</span></td></tr>
+    <tr><td>K-grouped GEMM</td><td><code>k_grouped_fp8_gemm_tn_contiguous</code></td><td>K-axis split into variable-length groups (MoE weight backward)</td><td><span class="ref">apis/gemm.hpp:299</span></td></tr>
+    <tr><td>Mega MoE</td><td><code>fp8_fp4_mega_moe</code></td><td>Fused EP-dispatch + FP8×FP4 GEMM1 + SwiGLU + GEMM2 + EP-combine</td><td><span class="ref">apis/mega.hpp</span></td></tr>
+    <tr><td>MQA logits (indexer)</td><td><code>fp8_fp4_mqa_logits</code></td><td>Weighted-ReLU multi-query-attention logits for DeepSeek v3.2 indexer</td><td><span class="ref">apis/attention.hpp:76</span></td></tr>
+    <tr><td>HyperConnection</td><td><code>tf32_hc_prenorm_gemm</code></td><td>GEMM fused with HC pre-normalization</td><td><span class="ref">apis/hyperconnection.hpp</span></td></tr>
+    <tr><td>Einsum (BF16/FP8)</td><td><code>einsum</code>, <code>fp8_einsum</code></td><td>Hardcoded attention-shape contractions</td><td><span class="ref">apis/einsum.hpp</span></td></tr>
+    <tr><td>cuBLASLt fallback</td><td><code>cublaslt_gemm_nt</code></td><td>Delegates to NVIDIA's library</td><td><span class="ref">impls/smxx_cublaslt.hpp</span></td></tr>
+  </table>
+</section>
+
+<!-- ===================== 2. ARCHITECTURE ===================== -->
+<section id="arch">
+  <h2 class="sec"><span class="num">02</span> Architecture at a Glance</h2>
+  <p class="lead-sec">A call descends through six layers. The top three live in Python and C++ host code; the bottom three
+  live in the generated CUDA that runs on the GPU.</p>
+
+  <svg viewBox="0 0 900 520" width="100%" style="max-width:980px;margin:10px 0" font-family="ui-monospace,Consolas,monospace" font-size="12">
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#4ea1ff"/>
+      </marker>
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1a2740"/><stop offset="1" stop-color="#121a26"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Layer 1: Python -->
+    <rect x="40" y="18" width="820" height="62" rx="10" fill="url(#g1)" stroke="#2a3340"/>
+    <text x="60" y="42" fill="#7ee787" font-weight="bold">①  Python package  deep_gemm/</text>
+    <text x="60" y="62" fill="#8b97a6">__init__.py — re-exports _C, sets envs, calls _C.init(library_root, cuda_home)</text>
+    <rect x="430" y="30" width="200" height="20" rx="4" fill="#0b0e12" stroke="#2a3340"/>
+    <text x="438" y="44" fill="#d2a8ff">deep_gemm.fp8_gemm_nt(a,b,d,c)</text>
+
+    <!-- arrow -->
+    <line x1="450" y1="80" x2="450" y2="108" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- Layer 2: C++ API -->
+    <rect x="40" y="108" width="820" height="62" rx="10" fill="url(#g1)" stroke="#2a3340"/>
+    <text x="60" y="132" fill="#4ea1ff" font-weight="bold">②  C++ API layer  csrc/apis/*.hpp</text>
+    <text x="60" y="152" fill="#8b97a6">validate tensors · transform SF layout · choose arch (sm90/sm100) · build GemmDesc</text>
+    <rect x="430" y="120" width="280" height="20" rx="4" fill="#0b0e12" stroke="#2a3340"/>
+    <text x="436" y="134" fill="#d2a8ff">fp8_fp4_gemm_nt → sm90_fp8_gemm_1d1d(...)</text>
+
+    <line x1="450" y1="170" x2="450" y2="198" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- Layer 3: Heuristics -->
+    <rect x="40" y="198" width="400" height="62" rx="10" fill="url(#g1)" stroke="#2a3340"/>
+    <text x="60" y="222" fill="#ffb454" font-weight="bold">③  Heuristics  csrc/jit_kernels/heuristics/</text>
+    <text x="60" y="242" fill="#8b97a6">get_best_config&lt;SM90/100ArchSpec&gt; → block_m/n/k, stages, swizzle, threads</text>
+
+    <rect x="460" y="198" width="400" height="62" rx="10" fill="url(#g1)" stroke="#2a3340"/>
+    <text x="480" y="222" fill="#7ee787" font-weight="bold">④  Host launcher  impls/*.hpp</text>
+    <text x="480" y="242" fill="#8b97a6">build TMA descriptors · emit CUDA source · launch</text>
+
+    <line x1="350" y1="260" x2="350" y2="288" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="660" y1="260" x2="660" y2="288" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- Layer 5: JIT compiler -->
+    <rect x="40" y="288" width="820" height="62" rx="10" fill="url(#g1)" stroke="#2a3340"/>
+    <text x="60" y="312" fill="#ff7b72" font-weight="bold">⑤  JIT compiler  csrc/jit/</text>
+    <text x="60" y="332" fill="#8b97a6">hash source · nvcc/nvrtc → kernel.cubin · cache ~/.deep_gemm · cuLibraryLoad → CUfunction</text>
+
+    <line x1="450" y1="350" x2="450" y2="378" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr)"/>
+
+    <!-- Layer 6: Device kernel -->
+    <rect x="40" y="378" width="820" height="122" rx="10" fill="#161022" stroke="#3d2c5a"/>
+    <text x="60" y="402" fill="#a371f7" font-weight="bold">⑥  Generated device kernel  deep_gemm/include/deep_gemm/impls/*.cuh</text>
+    <text x="60" y="422" fill="#8b97a6">Scheduler → TMA producer warp (load A,B,SFA,SFB into smem) → WGMMA/UMMA consumer warpgroups</text>
+    <text x="60" y="440" fill="#8b97a6">→ epilogue: multiply per-block FP8/FP4 scales (SFA·SFB·accum) → TMA store D to HBM</text>
+    <rect x="60" y="452" width="240" height="34" rx="6" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="68" y="464" fill="#f0883e">SM90: WGMMA + reg promote</text>
+    <text x="68" y="478" fill="#5c6675">manual float-scale epilogue</text>
+    <rect x="320" y="452" width="240" height="34" rx="6" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="328" y="464" fill="#a371f7">SM100: UMMA + tmem</text>
+    <text x="328" y="478" fill="#5c6675">native block-scaled UE8M0</text>
+    <rect x="580" y="452" width="260" height="34" rx="6" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="588" y="464" fill="#7ee787">async barriers pipeline</text>
+    <text x="588" y="478" fill="#5c6675">copy ∥ math ∥ store</text>
+  </svg>
+  <p class="cap"><b>Figure 1.</b> The six-layer descent of a single GEMM call. Layers ①–⑤ run on the CPU host
+  (microseconds of overhead, cached after first call); layer ⑥ runs on the GPU.</p>
+
+  <div class="callout">
+    <div class="ttl">Why two backends per family</div>
+    <p style="margin:0">
+      Hopper (SM90, <span class="chip sm90">sm_90a</span>) and Blackwell (SM100, <span class="chip sm100">sm_100a</span>) have
+      different tensor-core instructions and scaling support. On SM90 the FP8 scale factors are <b>FP32</b> and the epilogue
+      multiplies them into the accumulator <em>in registers</em>. On SM100 the scales are <b>packed UE8M0</b> (a pure-power-of-2
+      exponent with no mantissa) and a <em>block-scaled UMMA</em> instruction applies them natively inside tensor memory
+      (<code>tmem</code>). That is why you see twin files like <code>sm90_fp8_gemm_1d1d.cuh</code> and <code>sm100_fp8_fp4_gemm_1d1d.cuh</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== 3. REPOSITORY MAP ===================== -->
+<section id="repo">
+  <h2 class="sec"><span class="num">03</span> Repository Map</h2>
+  <p class="lead-sec">Only ~7,700 files total, but most are CUTLASS/CuTe headers vendored under <code>third-party/</code>.
+  The actual DeepGEMM source is small — about 8,000 lines of C++/CUDA + 1,000 lines of Python.</p>
+
+  <pre><code><span class="com">DeepGEMM/</span>
+├── <span class="fn">deep_gemm/</span>                      <span class="com"># ① Python package (shipped to users)</span>
+│   ├── __init__.py                <span class="com"># re-exports _C, sets envs, _C.init()</span>
+│   ├── mega/__init__.py           <span class="com"># SymmBuffer, transform_weights_for_mega_moe, mega_moe()</span>
+│   ├── utils/{math,layout,dist}.py <span class="com"># FP8/FP4 quantization helpers, dist init</span>
+│   ├── testing/{numeric,bench}.py  <span class="com"># reference impls + benchmarking</span>
+│   ├── legacy/                    <span class="com"># Triton kernels for A100 (SM80) fallback</span>
+│   └── include/deep_gemm/         <span class="com"># ⑥ DEVICE kernels (.cuh) — included by JIT source</span>
+│       ├── impls/                 <span class="com">#   sm90/sm100 gemm, mqa, mega_moe, hc, layout</span>
+│       ├── mma/{sm90,sm100}.cuh   <span class="com">#   WGMMA / UMMA instruction wrappers</span>
+│       ├── ptx/{tma,wgmma,tcgen05,ld_st}.cuh <span class="com"># raw PTX intrinsics</span>
+│       ├── scheduler/{gemm,mega_moe,*mqa}.cuh <span class="com"># block scheduling / swizzle</span>
+│       ├── epilogue/              <span class="com"># store-C/D + head-split transforms</span>
+│       ├── comm/barrier.cuh       <span class="com"># cluster/async barriers</span>
+│       └── layout/{mega_moe,sym_buffer,mqa_logits}.cuh
+├── <span class="fn">csrc/</span>                           <span class="com"># ②–⑤ C++ host code (compiled into _C.so)</span>
+│   ├── python_api.cpp             <span class="com"># pybind11 module: registers 7 API groups</span>
+│   ├── apis/                      <span class="com"># ② per-feature host API: gemm, mega, attention…</span>
+│   ├── jit/                       <span class="com"># ⑤ the JIT compiler + runtime + cache</span>
+│   │   ├── compiler.hpp           <span class="com">#   NVCCCompiler / NVRTCCompiler, build()</span>
+│   │   ├── kernel_runtime.hpp     <span class="com">#   load cubin → CUfunction; LaunchRuntime</span>
+│   │   ├── handle.hpp             <span class="com">#   lazy CUDA-driver symbols, launch_kernel()</span>
+│   │   ├── cache.hpp / include_parser.hpp / device_runtime.hpp
+│   ├── jit_kernels/
+│   │   ├── heuristics/            <span class="com"># ③ tile/stage tuning: sm90.hpp, sm100.hpp, mega_moe.hpp</span>
+│   │   └── impls/                 <span class="com"># ④ host launchers (.hpp) that emit & dispatch</span>
+│   ├── utils/                     <span class="com"># layout checks, hash, lazy-init, math, system</span>
+│   └── indexing/main.cu           <span class="com"># only for IDE indexing (not shipped)</span>
+├── <span class="fn">stubs/_C.pyi</span>                   <span class="com"># auto-generated Python type stubs</span>
+├── <span class="fn">tests/</span>                         <span class="com"># pytest: test_fp8_fp4, test_mega_moe, …</span>
+├── <span class="fn">scripts/</span>                       <span class="com"># generate_pyi, quick_plot_pm, ncu runner</span>
+├── setup.py · develop.sh · install.sh · build.sh
+├── CMakeLists.txt                  <span class="com"># IDE indexing only; real build is JIT</span>
+└── third-party/{cutlass,fmt}      <span class="com"># vendored CUTLASS/CuTe + {fmt}</span>
+</code></pre>
+
+  <div class="callout warn">
+    <div class="ttl">Two include trees — easy to confuse</div>
+    <p style="margin:0">
+      <b>Host</b> headers live in <code>csrc/</code> (compiled into <code>_C.so</code> at install time).
+      <b>Device</b> kernels live in <code>deep_gemm/include/deep_gemm/</code> and are <em>not</em> compiled at install — they
+      are pulled in by <code>#include</code> from the JIT-generated source string at runtime. The
+      <code>develop.sh</code> script symlinks CUTLASS/CuTe into <code>deep_gemm/include/</code> so both the IDE and the
+      JIT compiler can resolve <code>&lt;deep_gemm/...&gt;</code> and <code>&lt;cute/...&gt;</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== 4. BUILD ===================== -->
+<section id="build">
+  <h2 class="sec"><span class="num">04</span> Build &amp; Install Flow</h2>
+  <p class="lead-sec">A subtlety worth internalizing early: <b>installation does not compile any GPU kernels</b>. It only builds
+  the thin pybind11 extension <code>_C</code> and bundles the device-kernel headers as package data.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>install.sh → setup.py</h4>
+      <div class="path">setup.py:102-111, 168-214</div>
+      <p>Builds a <code>CUDAExtension</code> from the single source <code>csrc/python_api.cpp</code>, links
+      <code>cudart</code>+<code>nvrtc</code>, and produces a wheel. <code>CustomBuildPy</code> first copies CUTLASS/CuTe
+      headers into <code>build_lib/deep_gemm/include</code>, bakes persistent envs into <code>envs.py</code>
+      (<code>DG_JIT_CACHE_DIR</code>, <code>DG_JIT_CPP_STANDARD</code>…), and regenerates <code>_C.pyi</code>.
+      <code>CachedWheelsCommand</code> tries to download a prebuilt wheel matching (CUDA, torch, python, ABI) before
+      falling back to a local build.</p>
+    </div>
+    <div class="card">
+      <h4>develop.sh (dev loop)</h4>
+      <div class="path">develop.sh</div>
+      <p>Symlinks <code>cutlass/</code> and <code>cute/</code> into <code>deep_gemm/include/</code>, runs
+      <code>python setup.py build</code>, and symlinks the resulting <code>_C.so</code> into the package dir for in-place
+      imports. Use this when editing C++ host code.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">1</div>
+    <div class="b">
+      <h4>Install builds only the C++ glue</h4>
+      <p><code>nvcc</code>/<code>nvrtc</code> are <em>not</em> invoked at install. The device kernels
+      (<code>.cuh</code>) are shipped verbatim inside the wheel as <code>package_data</code>
+      (<span class="ref">setup.py:201-207</span>).</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">2</div>
+    <div class="b">
+      <h4>First call triggers JIT</h4>
+      <p>When a GEMM is first called, Python's <code>import deep_gemm</code> has already run
+      <code>_C.init(library_root, cuda_home)</code> (<span class="ref">__init__.py:124</span>), which records where the
+      device headers and <code>nvcc</code> live. The call then descends to the host launcher, which emits a CUDA source
+      string, hands it to the JIT compiler, and <code>nvcc</code> produces <code>kernel.cubin</code>.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">3</div>
+    <div class="b">
+      <h4>Subsequent calls hit cache</h4>
+      <p>The cubin is cached under <code>~/.deep_gemm/cache/kernel.&lt;name&gt;.&lt;hash&gt;/</code> and an in-process
+      <code>KernelRuntimeCache</code> holds the loaded <code>CUfunction</code>. The second call with the same shape is
+      just a <code>cuLaunchKernelEx</code> — effectively zero CPU overhead.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 5. COMPONENTS ===================== -->
+<section id="components">
+  <h2 class="sec"><span class="num">05</span> Per-Component Analysis</h2>
+
+  <!-- 5.1 Python -->
+  <h3 id="c-python">5.1 — The Python package <code>deep_gemm/</code></h3>
+  <p>The package is a thin façade. <code>__init__.py</code> (<span class="ref">deep_gemm/__init__.py</span>) does four things:</p>
+  <ol>
+    <li><b>Seed env vars</b> from the build-time-baked <code>envs.py</code> (lines 6–13) so cache dir / C++ standard persist.</li>
+    <li><b>Re-export the C++ symbols</b> from <code>_C</code> — every kernel (<code>fp8_gemm_nt</code>, <code>bf16_gemm_nt</code>,
+        <code>fp8_fp4_mega_moe</code>…) is a C++ function bound by pybind11 (lines 16–83). FP8 names are aliased to the
+        FP8×FP4 implementations (<code>fp8_gemm_nt = fp8_fp4_gemm_nt</code>, see <span class="ref">gemm.hpp:711-717</span>).</li>
+    <li><b>Import the mega helpers</b> from <code>.mega</code> (lines 86–92) — pure-Python orchestration around symmetric memory.</li>
+    <li><b>Locate CUDA</b> and call <code>_C.init()</code> (lines 106–127) so the C++ side knows where <code>nvcc</code> and the
+        device headers are.</li>
+  </ol>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>utils/math.py — quantization</h4>
+      <div class="path">deep_gemm/utils/math.py</div>
+      <p>The user-facing FP8/FP4 casters: <code>per_token_cast_to_fp8</code> (line 26), <code>per_token_cast_to_fp4</code>
+      (line 96), <code>per_channel_cast_to_fp8</code>, <code>per_block_cast_to_fp8</code>. Each splits the tensor into
+      <code>gran_k</code>-element groups, computes the group amax, derives the scale <code>sf = amax / 448.0</code> (FP8
+      max) or <code>amax / 6.0</code> (FP4 max), optionally rounds it to <b>UE8M0</b> via <code>ceil_to_ue8m0</code> (line 13),
+      and packs 4 scales into one <code>int32</code> via <code>pack_ue8m0_to_int</code> (line 19). <code>cast_back_from_fp8/fp4</code>
+      provides the reference dequantizer used in tests.</p>
+    </div>
+    <div class="card">
+      <h4>mega/__init__.py — MoE orchestration</h4>
+      <div class="path">deep_gemm/mega/__init__.py</div>
+      <p><code>SymmBuffer</code> (line 18) allocates a symmetric-memory buffer across a <code>torch.distributed</code> group
+      and carves it into named views (<code>x</code>, <code>l1_acts</code>, <code>l2_acts</code>, their SFs…) using the
+      <code>slice_input_buffers</code> closure returned by C++. <code>transform_weights_for_mega_moe</code> (line 131)
+      interleaves gate/up weight rows and transposes the FP4 SFs for the UTCCP load path. The thin Python
+      <code>fp8_fp4_mega_moe</code> (line 153) just forwards to <code>_C.fp8_fp4_mega_moe</code>.</p>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h4>utils/dist.py — distributed setup</h4>
+      <div class="path">deep_gemm/utils/dist.py</div>
+      <p><code>init_dist</code> (line 10) bootstraps an NCCL process group; <code>uneven_all_gather</code> handles
+      variable-length gathers. The actual symmetric-memory rendezvous is delegated to
+      <code>torch.distributed._symmetric_memory</code> inside <code>SymmBuffer</code>.</p>
+    </div>
+    <div class="card">
+      <h4>testing/{numeric,bench}.py</h4>
+      <div class="path">deep_gemm/testing/numeric.py</div>
+      <p><code>calc_diff</code> (line 5) computes a cosine-like relative error <code>1 − 2⟨x,y⟩/(‖x‖²+‖y‖²)</code>;
+      <code>assert_bitwise_equal</code> (line 24) does exact byte comparison for SF packing tests. <code>bench.py</code>
+      measures TFLOPS and bandwidth over increasing M.</p>
+    </div>
+  </div>
+
+  <!-- 5.2 C++ API -->
+  <h3 id="c-apis">5.2 — The C++ API layer <code>csrc/apis/</code></h3>
+  <p>One header per feature family, each exposing a <code>register_apis(pybind11::module_&)</code> called from
+  <span class="ref">python_api.cpp:17-28</span>:</p>
+
+  <pre><code><span class="com">// csrc/python_api.cpp</span>
+<span class="kw">PYBIND11_MODULE</span>(_C, m) {
+    m.doc() = <span class="str">"DeepGEMM C++ library"</span>;
+    deep_gemm::attention::register_apis(m);     <span class="com">// MQA logits, head-split GEMM</span>
+    deep_gemm::einsum::register_apis(m);        <span class="com">// hardcoded BF16/FP8 contractions</span>
+    deep_gemm::hyperconnection::register_apis(m);
+    deep_gemm::gemm::register_apis(m);           <span class="com">// the big one: dense/grouped GEMMs</span>
+    deep_gemm::layout::register_apis(m);         <span class="com">// SF layout transforms</span>
+    deep_gemm::mega::register_apis(m);           <span class="com">// Mega MoE</span>
+    deep_gemm::runtime::register_apis(m);        <span class="com">// set_num_sms, set_pdl, init()</span>
+}</code></pre>
+
+  <p>The API functions are deliberately uniform: they (1) read tensor majors/shapes, (2) validate, (3) transform the
+  scaling factors into the layout the hardware wants, (4) branch on architecture, and (5) call into the host launcher.
+  The dense FP8 entry is the canonical example:</p>
+
+  <pre><code><span class="com">// csrc/apis/gemm.hpp:73</span>
+<span class="kw">static void</span> <span class="fn">fp8_fp4_gemm_nt</span>(<span class="kw">const</span> pair&lt;Tensor,Tensor&gt;& a, <span class="kw">const</span> pair&lt;Tensor,Tensor&gt;& b,
+                      Tensor&amp; d, optional&lt;Tensor&gt; c, recipe…, compiled_dims, disable_ue8m0_cast) {
+    <span class="kw">const auto</span> major_a = get_major_type_ab(a.first);   <span class="com">// K-major or MN-major</span>
+    <span class="kw">const auto</span> [m,k]  = check_ab_fp8_fp4(a.first, major_a, arch_major);
+    <span class="kw">const auto</span> [n,k_]= check_ab_fp8_fp4(b.first, major_b, arch_major);
+    <span class="kw">if</span> (early_return(m,n,k,d,c)) <span class="kw">return</span>;
+
+    <span class="com">// Turn the user's FP32 SFs into the hardware-required layout (TMA-aligned, MN-major, packed UE8M0 on SM100)</span>
+    <span class="kw">auto</span> [sfa,sfb,gran_k_a,gran_k_b] =
+        layout::transform_sf_pair_into_required_layout(a.second,b.second,m,n,k,recipe,…,disable_ue8m0_cast);
+
+    <span class="kw">if</span> (arch_major==9 <span class="kw">and</span> sfa.scalar_type()==kFloat)        sm90_fp8_gemm_1d1d(a.first,sfa,b.first,sfb,c,d,m,n,k,major_a,major_b,compiled_dims);
+    <span class="kw">else if</span> (arch_major==10 <span class="kw">and</span> sfa.scalar_type()==kInt)  sm100_fp8_fp4_gemm_1d1d(a.first,sfa,b.first,sfb,c,d,…,compiled_dims);
+}</code></pre>
+
+  <p>Notice the layout-transform step is shared across families via
+  <code>layout::transform_sf_pair_into_required_layout</code> (<span class="ref">apis/layout.hpp:63</span>), and the
+  "recipe" (a 3-tuple <code>(gran_mn, gran_mn, gran_k)</code>) encodes the scaling-factor blocking. The NN/TN/TT variants
+  are one-liners that transpose operands and delegate to <code>_nt</code> (<span class="ref">gemm.hpp:126-164</span>).</p>
+
+  <div class="callout key">
+    <div class="ttl">The "recipe" abstraction</div>
+    <p style="margin:0">A GEMM's scaling factors can be quantized at different granularities. DeepGEMM encodes this as a tuple
+    <code>(gran_mn_A, gran_mn_B, gran_k)</code>. The default recipes are <code>(1,128,128)</code> on SM90 (per-row A scale,
+    per-128-channel B scale, 128-K grouping — the "1D2D" kernel) and <code>(1,1,128)</code> on SM100 (per-row on both — the
+    "1D1D" kernel) (<span class="ref">utils/layout.hpp:74-87</span>). <code>gran_k</code> is almost always 128 (or 32 for
+    FP4) because that is the natural FP8 MMA block size.</p>
+  </div>
+
+  <!-- 5.3 JIT -->
+  <h3 id="c-jit">5.3 — The JIT compiler <code>csrc/jit/</code></h3>
+  <p>This is the cleverest part of the design. Five small files implement a complete runtime compilation pipeline.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>compiler.hpp</h4>
+      <div class="path">csrc/jit/compiler.hpp</div>
+      <p>Base <code>Compiler</code> + <code>NVCCCompiler</code> (line 171, shells out to <code>nvcc -cubin</code>) and
+      <code>NVRTCCompiler</code> (line 254, in-process compile via libnvrtc, ~10× faster, opt-in with
+      <code>DG_JIT_USE_NVRTC=1</code>). The <code>build(name, code)</code> method (line 100) is the entry point: it hashes
+      <code>name$signature$flags$code</code>, checks an in-process cache, compiles into a temp dir, then
+      <em>atomically renames the directory</em> into the cache path (crash-safe on shared filesystems).</p>
+    </div>
+    <div class="card">
+      <h4>kernel_runtime.hpp</h4>
+      <div class="path">csrc/jit/kernel_runtime.hpp</div>
+      <p><code>KernelRuntime</code> (line 28) loads <code>kernel.cubin</code> into a <code>CUlibrary</code>/<code>CUfunction</code>
+      via <code>load_kernel</code>, enumerating the single kernel symbol (or using <code>cuLibraryEnumerateKernels</code> on
+      newer drivers). <code>LaunchRuntime&lt;Derived&gt;</code> (line 119) is the CRTP base every host launcher inherits:
+      <code>generate()</code> prepends an include-hash comment, <code>launch()</code> builds the <code>dim3</code>/cluster/PDL
+      config and calls <code>Derived::launch_impl</code>.</p>
+    </div>
+  </div>
+  <div class="grid g3">
+    <div class="card">
+      <h4>handle.hpp</h4>
+      <div class="path">csrc/jit/handle.hpp</div>
+      <p>Lazy-loads CUDA driver symbols (<code>lazy_cuLaunchKernelEx</code>, <code>lazy_cuTensorMapEncodeTiled</code>…) via
+      <code>dlopen</code>. Provides <code>load_kernel</code>, <code>construct_launch_config</code> (sets cluster + PDL launch
+      attributes), and <code>launch_kernel</code> (packs variadic args into <code>void*[]</code>).</p>
+    </div>
+    <div class="card">
+      <h4>cache.hpp</h4>
+      <div class="path">csrc/jit/cache.hpp</div>
+      <p><code>KernelRuntimeCache</code> — a process-lifetime <code>unordered_map&lt;path, shared_ptr&lt;KernelRuntime&gt;&gt;</code>.
+      <code>get()</code> returns the loaded function if the dir is valid, else constructs one.</p>
+    </div>
+    <div class="card">
+      <h4>include_parser.hpp</h4>
+      <div class="path">csrc/jit/include_parser.hpp</div>
+      <p>Recursively hashes every <code>#include &lt;deep_gemm/...&gt;</code> reached from the generated source. That hash is
+      baked into the cache key, so editing any <code>.cuh</code> invalidates only affected kernels.</p>
+    </div>
+  </div>
+  <p><code>device_runtime.hpp</code> holds the <code>DeviceRuntime</code> singleton: device props, arch detection
+  (<code>get_arch</code> returns <code>90a</code>/<code>100a</code>/<code>100f</code>), and the runtime knobs
+  (<code>num_sms</code>, <code>tc_util</code>, <code>enable_pdl</code>) exposed to Python. <code>apis/runtime.hpp</code>
+  wires them and the <code>init()</code> call (<span class="ref">apis/runtime.hpp:42-48</span>).</p>
+
+  <!-- 5.4 Heuristics -->
+  <h3 id="c-heur">5.4 — The heuristics engine <code>csrc/jit_kernels/heuristics/</code></h3>
+  <p>"Heuristics" = picking the tile sizes and pipeline depth for a given (shape, dtype, arch). It is a small
+  enumerate-and-score search, not machine learning.</p>
+
+  <pre><code><span class="com">// heuristics/common.hpp:14</span>
+<span class="kw">template</span>&lt;<span class="kw">typename</span> ArchSpec&gt;
+GemmConfig <span class="fn">get_best_config</span>(<span class="kw">const</span> GemmDesc&amp; desc) {
+    <span class="kw">auto</span> candidates = ArchSpec::get_layout_candidates(desc);   <span class="com">// enumerate (block_m,block_n,cluster) combos</span>
+    <span class="kw">auto</span> best = candidates[0], best_info = ArchSpec::get_layout_info(desc, best);
+    <span class="kw">for</span> (<span class="kw">auto</span>& c : candidates)                                   <span class="com">// score each by an estimated cycle count</span>
+        <span class="kw">if</span> (ArchSpec::compare(info, best_info)) best = c;
+    <span class="kw">return</span> { best, ArchSpec::get_storage_config(desc,best),
+              ArchSpec::get_pipeline_config(desc,best,sc), ArchSpec::get_launch_config(desc,best) };
+}</code></pre>
+
+  <p>The config structs (<span class="ref">heuristics/config.hpp</span>) decompose the decision:</p>
+  <table>
+    <tr><th>Struct</th><th>Decides</th><th>Example fields</th></tr>
+    <tr><td><code>GemmDesc</code></td><td>what the user asked for</td><td><code>m,n,k, gemm_type, a/b/cd_dtype, major_a/b, num_sms, tc_util, compiled_dims</code></td></tr>
+    <tr><td><code>Layout</code></td><td>tiling + cluster</td><td><code>block_m, block_n, block_k, cluster_m, cluster_n, swap_ab</code></td></tr>
+    <tr><td><code>StorageConfig</code></td><td>shared-memory layout</td><td><code>load_block_m/n, store_block_m/n, swizzle_a/b/cd_mode</code></td></tr>
+    <tr><td><code>PipelineConfig</code></td><td>async depth</td><td><code>num_stages, smem_size</code></td></tr>
+    <tr><td><code>LaunchConfig</code></td><td>thread counts</td><td><code>num_sms, num_tma_threads, num_math_threads, num_epilogue_threads</code></td></tr>
+  </table>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>sm90.hpp — Hopper</h4>
+      <div class="path">heuristics/sm90.hpp:13</div>
+      <p>Enumerates <code>block_m∈{16,32,64,128,256}</code>, <code>block_n∈[16..256]</code>, <code>cluster∈{1,2}</code> with
+      legality filters (swizzle ≥ 64B, ≥3 stages, no multicast if single wave). Scores by an <em>analytical L1/L2 cycle
+      model</em> (<code>get_layout_info</code>, line 201): it estimates bytes moved per block through L1 and L2 and divides
+      by their per-cycle bandwidths. <code>block_k = 128 / elem_size</code> (so 128 for FP8, 64 for BF16).</p>
+    </div>
+    <div class="card">
+      <h4>sm100.hpp — Blackwell</h4>
+      <div class="path">heuristics/sm100.hpp:14</div>
+      <p>Same shape but adds <code>swap_ab</code> (transposes A/B to fit the UMMA layout), enforces UTCCP-128 SF alignment
+      (<code>get_sf_uttcp_aligned_block_sizes</code>), checks tensor-memory column budget (<code>2*umma_n + tmem_sf_cols ≤ 512</code>),
+      and prefers larger clusters and single-wave configs. The comparator is a preference cascade (single-wave &gt; multicast &gt;
+      fewer waves &gt; larger last-wave util &gt; smaller tiles).</p>
+    </div>
+  </div>
+  <p><code>heuristics/runtime.hpp</code> holds tunables settable from Python:
+  <code>set_block_size_multiple_of</code>, <code>set_ignore_compile_dims</code>, and the contiguous-layout M/K alignment
+  (default 128, can shrink to 32 on SM100 — <span class="ref">runtime.hpp:47</span>).</p>
+
+  <!-- 5.5 Host launchers -->
+  <h3 id="c-launch">5.5 — The host launchers <code>csrc/jit_kernels/impls/*.hpp</code></h3>
+  <p>Each <code>.hpp</code> here is the bridge between "a validated GEMM" and "a launched GPU kernel". It defines a
+  <code>LaunchRuntime</code>-derived class whose <code>generate_impl()</code> returns the CUDA source string and whose
+  <code>launch_impl()</code> issues the driver launch. Take the SM90 FP8 1D1D launcher:</p>
+
+  <pre><code><span class="com">// csrc/jit_kernels/impls/sm90_fp8_gemm_1d1d.hpp:15</span>
+<span class="kw">class</span> SM90FP8Gemm1D1DRuntime <span class="kw">final</span> : <span class="kw">public</span> LaunchRuntime&lt;SM90FP8Gemm1D1DRuntime&gt; {
+    <span class="kw">struct</span> Args { GemmDesc gemm_desc; GemmConfig gemm_config; LaunchArgs launch_args;
+              <span class="kw">void</span>* gmem_a_ptr; …; CUtensorMap tensor_map_a_base, tensor_map_b_base,
+                                              tensor_map_sfa, tensor_map_sfb, tensor_map_cd; };
+
+    <span class="kw">static</span> <span class="type">string</span> <span class="fn">generate_impl</span>(<span class="kw">const</span> Args&amp; a) {
+        <span class="kw">return</span> fmt::format(<span class="str">R"(
+#include &lt;deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh&gt;
+static void __instantiate_kernel() {{
+    auto ptr = &amp;sm90_fp8_gemm_1d1d_impl&lt;{m},{n},{k}, {num_groups}, {block_m},{block_n},{block_k},
+        {sw_a},{sw_b}, {stages}, {tma_thr},{math_thr}, {cluster},{mcast}, {num_sms}, {gemm_type}, {cd_dtype}&gt;;
+}})"</span>, …);                       <span class="com">// bake the heuristics constants AS TEMPLATE ARGS</span>
+    }
+    <span class="kw">static void</span> <span class="fn">launch_impl</span>(kernel, config, args) {
+        launch_kernel(kernel, config, args.gmem_a_ptr, …, args.gemm_desc.m,n,k,
+                      args.tensor_map_a_base, …, args.tensor_map_cd);
+    }
+};</code></pre>
+
+  <div class="callout key">
+    <div class="ttl">Why bake constants as template arguments?</div>
+    <p style="margin:0">The device kernel is a giant C++ template <code>sm90_fp8_gemm_1d1d_impl&lt;SHAPE_M,SHAPE_N,…,BLOCK_M,…&gt;</code>.
+    By formatting the heuristics-chosen values directly into the source as integer template parameters, <code>nvcc</code>
+    sees them as compile-time constants and fully unrolls loops, folds branches, and pre-computes shared-memory offsets.
+    The <em>runtime-varying</em> values (actual <code>m,n,k</code> for the not-compiled dims, data pointers, TMA descriptors)
+    are passed as ordinary kernel arguments. The <code>compiled_dims="nk"</code> flag controls which of <code>m/n/k</code>
+    become template constants vs. runtime args — compiling more dims = faster kernel but a fresh cubin per shape.</p>
+  </div>
+
+  <p>The free function <code>sm90_fp8_gemm_1d1d()</code> (line 78) is what the API calls. It builds the <code>GemmDesc</code>,
+  calls <code>get_best_config&lt;SM90ArchSpec&gt;</code>, constructs the five TMA descriptors (next subsection), packs
+  <code>Args</code>, calls <code>generate</code> → <code>compiler->build</code> → <code>launch</code>.</p>
+
+  <!-- 5.6 Device kernels -->
+  <h3 id="c-device">5.6 — The device kernels <code>deep_gemm/include/deep_gemm/</code></h3>
+  <p>These are the actual GPU code. They are <code>#include</code>d by the JIT source and never compiled at install time.
+  The directory mirrors the host side:</p>
+  <ul>
+    <li><b><code>impls/</code></b> — the templated kernel bodies (<code>sm90_fp8_gemm_1d1d.cuh</code>,
+        <code>sm100_fp8_fp4_gemm_1d1d.cuh</code>, <code>sm100_fp8_fp4_mega_moe.cuh</code>, <code>sm100_mqa_logits.cuh</code>…).</li>
+    <li><b><code>mma/</code></b> — thin wrappers over the tensor-core instructions: <code>wgmma</code> (Hopper,
+        <span class="ref">mma/sm90.cuh</span>) and the UMMA descriptor builders (Blackwell, <span class="ref">mma/sm100.cuh</span>,
+        including <code>make_sf_desc</code> for the UTCCP SF layout).</li>
+    <li><b><code>ptx/</code></b> — raw inline-PTX intrinsics (<code>tma.cuh</code> for async copy, <code>wgmma.cuh</code>,
+        <code>tcgen05.cuh</code> for Blackwell tensor-memory ops, <code>ld_st.cuh</code> for shared-memory loads/stores).</li>
+    <li><b><code>scheduler/</code></b> — the <code>Scheduler</code> that maps blocks to (M,N) tiles with L2-friendly
+        swizzling, and handles grouped/masked/psum layouts (<span class="ref">scheduler/gemm.cuh</span>).</li>
+    <li><b><code>epilogue/</code></b> — the result write-back: <code>transform.cuh</code> (head-split index remap) and
+        <code>sm100_store_cd.cuh</code> (tmem→smem→TMA-store with BF16 cast).</li>
+    <li><b><code>comm/barrier.cuh</code></b>, <code>common/{math,utils,tma_copy,types}.cuh</code> — shared utilities.</li>
+  </ul>
+
+  <p>The FP8 1D1D kernel signature shows the full contract (<span class="ref">impls/sm90_fp8_gemm_1d1d.cuh:30</span>):</p>
+  <pre><code><span class="kw">template</span>&lt;uint SHAPE_M,SHAPE_N,SHAPE_K, kNumGroups, BLOCK_M,BLOCK_N,BLOCK_K,
+          kSwizzleAMode,kSwizzleBMode, kNumStages, kNumTMAThreads,kNumMathThreads,
+          kNumTMAMulticast,kIsTMAMulticastOnA, kNumSMs, GemmType kGemmType, <span class="kw">typename</span> cd_dtype_t&gt;
+__global__ <span class="kw">void</span> <span class="fn">sm90_fp8_gemm_1d1d_impl</span>(
+    fp8_e4m3* gmem_a, fp8_e4m3* gmem_b, <span class="type">int</span>* grouped_layout, TmaDescriptor* tensor_map_buffer,
+    uint shape_m, shape_n, shape_k,
+    <span class="kw">const __grid_constant__</span> TmaDescriptor tensor_map_a_base, tensor_map_b_base,
+                                       tensor_map_sfa, tensor_map_sfb, tensor_map_cd);</code></pre>
+  <p>Almost everything the kernel needs is baked into template params; the runtime args are the few not-compiled dims,
+  the data pointers, and the five TMA descriptors (passed as <code>__grid_constant__</code> so they live in constant memory).</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>SM90 epilogue: register promotion</h4>
+      <div class="path">sm90_fp8_gemm_1d1d.cuh:311-320</div>
+      <p>Hopper's WGMMA produces an FP32 accumulator <code>accum[]</code> per K-tile. Because the inputs were FP8
+      (no native block-scaled MMA), the kernel keeps a separate <code>final_accum[]</code> and, after each K-tile's
+      WGMMA completes, reads the per-block FP32 scales <code>scale_a_0/1</code> (from <code>smem_sfa</code>) and
+      <code>scales_b[]</code> (from <code>smem_sfb</code>) and does <code>final_accum += scale_a * scale_b * accum</code>.
+      The result goes to smem then a TMA-reduce-add store accumulates split-K partials into D.</p>
+    </div>
+    <div class="card">
+      <h4>SM100 epilogue: native block-scaled UMMA</h4>
+      <div class="path">sm100_fp8_fp4_gemm_1d1d.cuh:285</div>
+      <p>Blackwell has a <em>block-scaled MMA</em> instruction. The kernel builds
+      <code>cute::UMMA::make_instr_desc_block_scaled&lt;…, float, float_ue8m0_t, …&gt;</code> (line 285) and copies the
+      packed-UE8M0 SFA/SFB into <em>tensor memory</em> columns (<code>kTmemStartColOfSFA/SFB</code>) via the UTCCP copy
+      (lines 358/367). The hardware then multiplies <code>SFA·SFB·accum</code> natively. The epilogue
+      (<span class="ref">epilogue/sm100_store_cd.cuh</span>) just drains tmem→smem, optionally casts to BF16, and TMA-stores.</p>
+    </div>
+  </div>
+
+  <!-- 5.7 Mega MoE -->
+  <h3 id="c-mega">5.7 — Mega MoE <code>csrc/apis/mega.hpp</code> + <code>impls/sm100_fp8_fp4_mega_moe.cuh</code></h3>
+  <p>Mega MoE is the headline feature: a single kernel that fuses the entire routed-expert FFN of an MoE layer and
+  <em>overlaps</em> the NVLink token dispatch/combine with the two GEMMs.</p>
+
+  <svg viewBox="0 0 900 250" width="100%" style="max-width:920px;margin:10px 0" font-family="ui-monospace,Consolas,monospace" font-size="11.5">
+    <defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#7ee787"/></marker></defs>
+    <!-- timeline -->
+    <line x1="40" y1="40" x2="860" y2="40" stroke="#2a3340" stroke-width="2"/>
+    <text x="20" y="44" fill="#5c6675">time→</text>
+    <!-- NVLink band -->
+    <rect x="40" y="55" width="820" height="40" rx="6" fill="#1a2740" stroke="#2a3340"/>
+    <text x="50" y="79" fill="#4ea1ff">NVLink: EP dispatch  tokens→experts</text>
+    <text x="700" y="79" fill="#4ea1ff">EP combine  experts→tokens</text>
+    <!-- compute band -->
+    <rect x="40" y="105" width="820" height="90" rx="6" fill="#161022" stroke="#3d2c5a"/>
+    <rect x="60" y="118" width="190" height="64" rx="5" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="72" y="138" fill="#a371f7">GEMM1 (FP8×FP4)</text>
+    <text x="72" y="155" fill="#8b97a6">x @ W1 → h1</text>
+    <text x="72" y="172" fill="#8b97a6">tmem + UMMA</text>
+    <rect x="270" y="118" width="120" height="64" rx="5" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="284" y="138" fill="#7ee787">SwiGLU</text>
+    <text x="284" y="155" fill="#8b97a6">h1→act</text>
+    <text x="284" y="172" fill="#8b97a6">+amax</text>
+    <rect x="410" y="118" width="190" height="64" rx="5" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="422" y="138" fill="#a371f7">GEMM2 (FP8×FP4)</text>
+    <text x="422" y="155" fill="#8b97a6">act @ W2 → y</text>
+    <text x="422" y="172" fill="#8b97a6">tmem + UMMA</text>
+    <rect x="620" y="118" width="220" height="64" rx="5" fill="#0b0e12" stroke="#3d2c5a"/>
+    <text x="632" y="138" fill="#4ea1ff">ring-buffer pool</text>
+    <text x="632" y="155" fill="#8b97a6">l1_acts / l2_acts</text>
+    <text x="632" y="172" fill="#8b97a6">+ shared experts</text>
+    <!-- overlap arrows -->
+    <path d="M120,95 L120,118" stroke="#7ee787" stroke-width="2" marker-end="url(#arr2)" fill="none"/>
+    <path d="M500,95 L500,118" stroke="#7ee787" stroke-width="2" marker-end="url(#arr2)" fill="none"/>
+    <text x="160" y="210" fill="#5c6675">Communication (top) and compute (bottom) overlap: while GEMM1 math runs, dispatch for later experts and combine of earlier experts proceed over NVLink.</text>
+  </svg>
+  <p class="cap"><b>Figure 2.</b> Mega MoE fuses EP dispatch + GEMM1 + SwiGLU + GEMM2 + EP combine and overlaps NVLink with tensor-core math.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>Symmetric memory</h4>
+      <div class="path">mega/__init__.py:18, apis/mega.hpp:34</div>
+      <p>Each rank allocates a buffer of equal size; <code>symm_mem.rendezvous</code> registers it so every rank can
+      read/write every other rank's buffer directly over NVLink (peer-to-peer). <code>sym_buffer_ptrs</code> is the list
+      of device pointers across ranks passed into the kernel. The C++ <code>get_symm_buffer_size_for_mega_moe</code>
+      computes the worst-case ring-buffer capacity over all candidate <code>BLOCK_M</code> and returns a slicing closure
+      that carves the flat buffer into the named sub-buffers.</p>
+    </div>
+    <div class="card">
+      <h4>Weight transform</h4>
+      <div class="path">mega/__init__.py:97-149</div>
+      <p><code>transform_weights_for_mega_moe</code> interleaves gate/up rows (<code>_interleave_weights</code>, so
+      SwiGLU can read them as one packed tensor) and transposes the FP4 SFs into the UTCCP-friendly layout
+      (<code>_transpose_sf_for_utccp</code>). L1 weights get both; L2 only the SF transpose.</p>
+    </div>
+  </div>
+  <p>The heuristics (<span class="ref">heuristics/mega_moe.hpp:76</span>) pick <code>block_m</code> from the expected
+  tokens-per-expert (8→16→32→64→96→192), always cluster-2, <code>block_n=128</code>, and compute pipeline depth from
+  the SM100 shared-memory budget. The ring-buffer layout lives in <span class="ref">layout/mega_moe.cuh</span>
+  (<code>MegaMoEBuffer</code> with its <code>Workspace</code> of NVLink/grid/expert counters).</p>
+
+  <!-- 5.8 utils -->
+  <h3 id="c-utils">5.8 — Host utilities &amp; testing</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4><code>csrc/utils/layout.hpp</code></h4>
+      <p>Tensor major-ness checks (<code>get_major_type_ab</code>), shape getters, the <code>recipe</code> defaults
+      (<code>get_default_recipe</code> line 74), and <code>check_sf_layout</code> (line 90) which validates the SF shape,
+      TMA-stride alignment, and SM90 SFB contiguity.</p>
+    </div>
+    <div class="card">
+      <h4><code>csrc/utils/{hash,system,lazy_init,…}</code></h4>
+      <p><code>get_hex_digest</code> (xxhash-style) for cache keys; <code>call_external_command</code> for shelling out to
+      <code>nvcc</code>/<code>cuobjdump</code>; <code>LazyInit&lt;T&gt;</code> for thread-safe singletons;
+      <code>get_env</code> for typed env reads.</p>
+    </div>
+    <div class="card">
+      <h4><code>impls/runtime_utils.hpp</code></h4>
+      <p>The TMA descriptor builders: <code>make_tma_a_desc/b_desc/cd_desc/sf_desc</code> (lines 190-267) and the
+      <code>to_string</code> helpers that serialize C++ enums into the JIT source. This is where the host encodes the
+      memory layout the device kernel will consume.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 6. WALKTHROUGH ===================== -->
+<section id="walkthrough">
+  <h2 class="sec"><span class="num">06</span> Core Workflow Walkthrough: <code>fp8_gemm_nt</code> end-to-end</h2>
+  <p class="lead-sec">Follow one call — <code>deep_gemm.fp8_gemm_nt(a, b, d, c)</code> with <code>a,b</code> FP8+E4M3,
+  <code>d</code> BF16, on an H100 — from the Python statement to the PTX instruction. Eight steps.</p>
+
+  <div class="step" id="wt-1">
+    <div class="n">1</div><div class="b">
+      <h4>Python entry &amp; symbol resolution</h4>
+      <p>The user calls <code>deep_gemm.fp8_gemm_nt</code>. In <span class="ref">__init__.py:711</span>… actually the alias
+      is set in C++: <code>m.attr("fp8_gemm_nt") = m.attr("fp8_fp4_gemm_nt")</code> (<span class="ref">gemm.hpp:711</span>).
+      So the call lands in <code>fp8_fp4_gemm_nt</code> in <span class="ref">apis/gemm.hpp:73</span>. (On SM90 the SF dtype
+      is FP32; on SM100 the user would supply packed-int UE8M0, dispatching to the SM100 path.)</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-2">
+    <div class="n">2</div><div class="b">
+      <h4>Validation &amp; scaling-factor layout transform</h4>
+      <p>The API reads the major-ness of <code>a</code>/<code>b</code> (K-major required on SM90), checks shapes/types,
+      handles the trivial <code>k==0</code> / accumulation-copy cases (<code>early_return</code>,
+      <span class="ref">gemm.hpp:19</span>), then calls
+      <code>layout::transform_sf_pair_into_required_layout</code> (<span class="ref">apis/layout.hpp:63</span>).</p>
+      <p>For SM90 + FP32 SF + recipe <code>(1,128,128)</code> this is the <b>1D2D</b> path: SFA becomes
+      MN-major-TMA-aligned (<code>get_mn_major_tma_aligned_tensor</code>), SFB stays contiguous. For SM100 the FP32 scales
+      are <em>rounded to UE8M0, packed 4-per-int32, and made MN-major/TMA-aligned</em>
+      (<code>get_mn_major_tma_aligned_packed_ue8m0_tensor</code>, <span class="ref">apis/layout.hpp:49-54</span>).
+      The returned <code>gran_k_a/b</code> tell the launcher which kernel variant to instantiate.</p>
+      <p>Then it dispatches: <span class="chip sm90">SM90</span> <code>sm90_fp8_gemm_1d1d</code> (when
+      <code>gran_n==1</code>) or <code>sm90_fp8_gemm_1d2d</code>; <span class="chip sm100">SM100</span>
+      <code>sm100_fp8_fp4_gemm_1d1d</code> (<span class="ref">gemm.hpp:110-123</span>).</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-3">
+    <div class="n">3</div><div class="b">
+      <h4>Heuristic tuning</h4>
+      <p>The launcher <code>sm90_fp8_gemm_1d1d</code> (<span class="ref">impls/sm90_fp8_gemm_1d1d.hpp:78</span>) builds a
+      <code>GemmDesc</code> with <code>gemm_type=Normal, kernel_type=Kernel1D1D</code> and calls
+      <code>get_best_config&lt;SM90ArchSpec&gt;(desc)</code> (<span class="ref">heuristics/common.hpp:14</span>).</p>
+      <p>For our shape, the search enumerates candidate <code>(block_m, block_n, cluster)</code>, scores each by the
+      L1/L2 cycle model, and returns e.g. <code>block_m=128, block_n=128, block_k=128, num_stages=4, cluster=2,
+      num_threads=384</code>. <code>block_k</code> is fixed at <code>128/elem_size = 128</code> for FP8
+      (<span class="ref">sm90.hpp:60</span>). The config also fixes the swizzle modes (here both 128B) and asserts there are
+      no TMA splits (<span class="ref">impls/sm90_fp8_gemm_1d1d.hpp:102-103</span>).</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-4">
+    <div class="n">4</div><div class="b">
+      <h4>TMA descriptor construction</h4>
+      <p>Five <code>CUtensorMap</code> objects are built on the host via <code>lazy_cuTensorMapEncodeTiled</code>
+      (<span class="ref">impls/runtime_utils.hpp:144</span>):</p>
+      <ul>
+        <li><code>tensor_map_a</code> / <code>tensor_map_b</code> — describe A/B in global memory with the chosen swizzle,
+            so a single TMA instruction fetches a whole <code>block_m×block_k</code> tile.</li>
+        <li><code>tensor_map_sfa</code> / <code>tensor_map_sfb</code> — describe the (now-transformed) scale-factor tensors
+            in MN-major TMA-aligned form (<code>make_tma_sf_desc</code>, <span class="ref">runtime_utils.hpp:247</span>).</li>
+        <li><code>tensor_map_cd</code> — describes D (and C via reduce-add) for the TMA store/reduce epilogue.</li>
+      </ul>
+      <p>These are passed to the kernel as <code>__grid_constant__</code> (placed in constant memory) — TMA needs the
+      descriptor resident, not a pointer to it.</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-5">
+    <div class="n">5</div><div class="b">
+      <h4>JIT source generation</h4>
+      <p><code>SM90FP8Gemm1D1DRuntime::generate_impl</code> (<span class="ref">impls/sm90_fp8_gemm_1d1d.hpp:33</span>)
+      <code>fmt::format</code>s a tiny CUDA source that <code>#include</code>s the device kernel
+      <code>&lt;deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh&gt;</code> and then references the kernel template instantiated with
+      the heuristics values as integer template arguments. <code>LaunchRuntime::generate</code>
+      (<span class="ref">kernel_runtime.hpp:122</span>) prepends the recursive include-hash so any header edit invalidates the
+      cache. The resulting string is e.g.:</p>
+      <pre><code><span class="com">// Includes' hash value: 3f2a…</span>
+#include &lt;deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh&gt;
+<span class="kw">static void</span> __instantiate_kernel() {
+    <span class="kw">auto</span> ptr = &amp;sm90_fp8_gemm_1d1d_impl&lt;0,0,0, 1, 128,128,128, 128,128, 4, 128,256, 2,0, 132, GemmType::Normal, float&gt;;
+}</code></pre>
+      <p>The <code>0,0,0</code> for SHAPE_M/N/K means <code>compiled_dims="nk"</code> would make some of them constants;
+      here the default <code>"nk"</code> bakes M and K as constants if the API passed real shapes — the launcher uses
+      <code>get_compiled_dim</code> (<span class="ref">runtime_utils.hpp:22</span>) to decide per-dimension.</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-6">
+    <div class="n">6</div><div class="b">
+      <h4>Compile &amp; cache lookup</h4>
+      <p><code>compiler->build("sm90_fp8_gemm_1d1d", code)</code> (<span class="ref">compiler.hpp:100</span>):</p>
+      <ol>
+        <li>Hash <code>"sm90_fp8_gemm_1d1d$$NVCC12.9$$&lt;flags&gt;$$&lt;code&gt;"</code> → cache dir
+            <code>~/.deep_gemm/cache/kernel.sm90_fp8_gemm_1d1d.&lt;hash&gt;/</code>.</li>
+        <li>If the in-process <code>KernelRuntimeCache</code> has it (<span class="ref">cache.hpp:18</span>), return immediately.</li>
+        <li>Otherwise shell out: <code>cd &lt;tmp&gt; &amp;&amp; nvcc kernel.cu -cubin -o kernel.cubin --gpu-architecture=sm_90a
+            -O3 …</code> (<span class="ref">compiler.hpp:221</span>). On failure the assertion prints the NVCC log.</li>
+        <li><code>fsync</code> the temp dir and <em>atomically rename</em> it to the cache path (concurrent-safe).</li>
+        <li>Construct a <code>KernelRuntime</code>: <code>cuLibraryLoadFromFile</code> →
+            <code>cuLibraryEnumerateKernels</code> → <code>cuKernelGetFunction</code> (<span class="ref">handle.hpp:135</span>).
+            Store in the cache; return the shared_ptr.</li>
+      </ol>
+      <p>Second call with the same shape skips steps 3–5 entirely.</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-7">
+    <div class="n">7</div><div class="b">
+      <h4>Kernel launch</h4>
+      <p><code>SM90FP8Gemm1D1DRuntime::launch(runtime, args)</code> (<span class="ref">kernel_runtime.hpp:138</span>) builds
+      a <code>LaunchConfig</code> with grid = <code>(num_sms, 1)</code>, block = <code>(num_threads,)</code>, cluster = 2,
+      and the PDL flag (from <code>device_runtime->get_pdl()</code>). <code>construct_launch_config</code>
+      (<span class="ref">handle.hpp:174</span>) sets the cluster-dimension and programmatic-stream-serialization launch
+      attributes, then <code>launch_kernel</code> packs the 13 kernel args (pointers, m/n/k, five TMA descriptors) into a
+      <code>void*[]</code> and calls <code>cuLaunchKernelEx</code>.</p>
+    </div>
+  </div>
+
+  <div class="step" id="wt-8">
+    <div class="n">8</div><div class="b">
+      <h4>Inside the device kernel</h4>
+      <p>Now on the GPU. The kernel (<span class="ref">impls/sm90_fp8_gemm_1d1d.cuh:30</span>) splits its threads into a
+      <b>TMA producer</b> warpgroup (the last 128 threads) and <b>math consumer</b> warpgroups (the first 256), which
+      synchronize through async <code>ClusterTransactionBarrier</code>s in shared memory.</p>
+
+      <svg viewBox="0 0 900 230" width="100%" style="max-width:920px;margin:14px 0" font-family="ui-monospace,Consolas,monospace" font-size="11">
+        <defs><marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4ea1ff"/></marker></defs>
+        <!-- producer row -->
+        <rect x="30" y="20" width="840" height="44" rx="6" fill="#0b0e12" stroke="#2a3340"/>
+        <text x="40" y="40" fill="#4ea1ff" font-weight="bold">TMA producer warp</text>
+        <text x="40" y="57" fill="#8b97a6">while scheduler.get_next_block(): tma::copy A,B,SFA,SFB → smem[stage]; full_barrier.arrive_and_expect_tx()</text>
+        <!-- barrier -->
+        <rect x="120" y="68" width="660" height="22" rx="4" fill="#11261a" stroke="#1f3a27"/>
+        <text x="430" y="84" fill="#7ee787" text-anchor="middle">async full/empty barriers  (kNumStages double-buffered)</text>
+        <!-- consumer row -->
+        <rect x="30" y="96" width="840" height="110" rx="6" fill="#0b0e12" stroke="#3d2c5a"/>
+        <text x="40" y="116" fill="#a371f7" font-weight="bold">Math consumer warpgroups</text>
+        <text x="40" y="133" fill="#8b97a6">full_barrier.wait()  →  read SFA/SFB from smem  →  WGMMA&lt;FP8&gt; over BLOCK_K  →  warpgroup_commit/wait</text>
+        <text x="40" y="150" fill="#8b97a6">empty_barrier.arrive()  →  final_accum += scale_a * scale_b * accum   (the FP8 dequant promotion)</text>
+        <text x="40" y="167" fill="#8b97a6">store final_accum → smem_d  →  TMA_REDUCE_ADD into D (+ C if with_accumulation)</text>
+        <path d="M450,64 L450,96" stroke="#4ea1ff" stroke-width="2" marker-end="url(#arr3)" fill="none"/>
+        <text x="460" y="84" fill="#5c6675">data ready</text>
+      </svg>
+      <p class="cap"><b>Figure 3.</b> The producer/consumer pipeline of one output tile. The K-loop is software-pipelined:
+      while the consumer does WGMMA on stage <code>s</code>, the producer TMA-loads stage <code>s+1..s+N</code>.</p>
+
+      <p>The mechanics, in order (<span class="ref">sm90_fp8_gemm_1d1d.cuh</span>):</p>
+      <ol>
+        <li><b>Prefetch + barrier init</b> (lines 83-148): one thread prefetches the five TMA descriptors into the async
+            proxy; one warpgroup initializes <code>kNumStages</code> full/empty barrier pairs. Register counts are
+            reconfigured (<code>warpgroup_reg_alloc/dealloc</code>) to give the math side maximum registers.</li>
+        <li><b>Scheduler</b> (line 162): <code>Scheduler&lt;Normal,…&gt;</code> (<span class="ref">scheduler/gemm.cuh:197</span>)
+            hands out (m_block, n_block) tiles via L2-swizzled persistent scheduling — each SM keeps grabbing tiles until
+            none remain. For grouped/masked variants the same scheduler walks the group layout.</li>
+        <li><b>Producer K-loop</b> (lines 170-245): for each K-block, wait on the empty barrier for a free stage, issue
+            four TMAs (SFA, SFB, A-swizzled, B-swizzled) into that stage's smem, then
+            <code>full_barrier.arrive_and_expect_tx(total_bytes)</code> so the consumer knows when the copy lands.</li>
+        <li><b>Consumer K-loop</b> (lines 246-321): wait on the full barrier; load the per-row scales
+            <code>scale_a_0/1</code> and per-channel <code>scales_b[]</code> from smem; fence accumulators; issue
+            <code>warpgroup_arrive</code> + a loop of <code>WGMMA::wgmma(desc_a, desc_b, accum, k)</code>
+            (the Hopper tensor-core op) over <code>BLOCK_K/WGMMA::K</code> sub-tiles; <code>warpgroup_commit_batch</code> +
+            <code>warpgroup_wait&lt;0&gt;</code>; arrive on the empty barrier; then the promotion
+            <code>final_accum[i] += scale_a * scale_b * accum[i]</code> (lines 311-320).</li>
+        <li><b>Epilogue store</b> (lines 323-347): write <code>final_accum</code> into <code>smem_d</code>, then one
+            elected thread issues <code>SM90_TMA_REDUCE_ADD_2D::copy</code> which atomically adds the tile into global D
+            (and C, since the kernel accumulates <code>D = C + …</code>). The reduce-add is what makes split-K and
+            multi-CTA overlap safe.</li>
+      </ol>
+      <p>On Blackwell (<span class="ref">sm100_fp8_fp4_gemm_1d1d.cuh</span>) the structure is analogous but the promotion
+      step disappears from registers: the block-scaled UMMA instruction (line 285) consumes SFA/SFB from
+      <em>tensor memory</em> and writes the scaled result directly, and the epilogue
+      (<span class="ref">epilogue/sm100_store_cd.cuh</span>) drains tmem → smem → TMA store with an optional BF16 cast.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="ttl">Where the "D = C + A @ B" actually happens</div>
+    <p style="margin:0">In math: <code>D[i,j] = C[i,j] + Σ_k (A[i,k]·sfa[i,k]) · (B[j,k]·sfb[j,k])</code>. The FP8
+    <code>A·B</code> is accumulated by WGMMA into <code>accum</code> per K-tile; the <code>sfa·sfb</code> multiply and the
+    accumulation across K-tiles is the epilogue promotion; the <code>+ C</code> is the TMA reduce-add into D. So the whole
+    GEMM is split across <em>three hardware units</em> (TMA copy engine, tensor cores, TMA store/reduce) running
+    concurrently behind async barriers.</p>
+  </div>
+</section>
+
+<!-- ===================== 7. MEGA WALKTHROUGH ===================== -->
+<section id="mega-walk">
+  <h2 class="sec"><span class="num">07</span> Mega MoE Walkthrough</h2>
+  <p class="lead-sec">A multi-process Mega MoE call. The setup is heavier than a plain GEMM because it must coordinate
+  symmetric memory and weight layouts across ranks <em>once</em>, then the per-step call is cheap.</p>
+
+  <div class="step"><div class="n">A</div><div class="b">
+    <h4>One-time setup (per rank)</h4>
+    <p><code>init_dist</code> bootstraps NCCL (<span class="ref">utils/dist.py:10</span>). Then
+    <code>get_symm_buffer_for_mega_moe</code> (<span class="ref">mega/__init__.py:69</span>) aligns the token count to
+    <code>get_token_alignment_for_mega_moe()</code> (= 384, the LCM of candidate block sizes) and constructs a
+    <code>SymmBuffer</code>. The constructor asks C++ <code>get_symm_buffer_size_for_mega_moe</code>
+    (<span class="ref">apis/mega.hpp:34</span>) for the byte size + a slicing closure, allocates an <code>int8</code>
+    buffer, and (for &gt;1 rank) calls <code>symm_mem.rendezvous</code> to register it for peer access. The closure carves
+    the flat buffer into <code>x, x_sf, topk_idx, topk_weights, l1_acts(+sf), l2_acts(+sf), combine_token_buffer</code> and
+    (optionally) shared-expert buffers (<span class="ref">layout/mega_moe.cuh:331</span>).</p>
+  </div></div>
+
+  <div class="step"><div class="n">B</div><div class="b">
+    <h4>Weight preparation (once)</h4>
+    <p><code>transform_weights_for_mega_moe(l1, l2)</code> (<span class="ref">mega/__init__.py:131</span>): for FP8×FP4,
+    interleave gate/up rows of W1 <em>and</em> its SF, transpose W1's SF for UTCCP; for W2 only transpose the SF.
+    The transformed (weight, SF) tuples are what get passed every call.</p>
+  </div></div>
+
+  <div class="step"><div class="n">C</div><div class="b">
+    <h4>Per-step call</h4>
+    <p>The user copies <code>x_fp8, x_sf, topk_idx, topk_weights</code> into the buffer views, then calls
+    <code>deep_gemm.fp8_fp4_mega_moe(y, transformed_l1, transformed_l2, sym_buffer, …)</code>
+    (<span class="ref">mega/__init__.py:153</span>), which forwards to <code>_C.fp8_fp4_mega_moe</code>
+    (<span class="ref">apis/mega.hpp:157</span>). That function validates everything (recipe <code>(1,1,32)</code>,
+    SwiGLU, SF layout) and dispatches to <code>sm100_fp8_fp4_mega_moe</code>.</p>
+  </div></div>
+
+  <div class="step"><div class="n">D</div><div class="b">
+    <h4>Inside the mega-kernel</h4>
+    <p>The device kernel (<span class="ref">impls/sm100_fp8_fp4_mega_moe.cuh</span>) is the largest file in the repo
+    (~1,460 lines). It runs as a single grid with distinct thread roles:</p>
+    <ul>
+      <li><b>Dispatch warps</b> pull tokens from the local <code>x</code> buffer and ship them to the owning rank's
+          <code>l1_acts</code> ring slot for each chosen expert (over NVLink, using the symmetric buffer +
+          <code>sym_buffer_ptrs</code>).</li>
+      <li><b>Math warps</b> consume ready <code>l1_acts</code> tiles, run GEMM1 (FP8×FP4, block-scaled UMMA), apply
+          SwiGLU (+ cross-warp amax reduction for the next FP8 quantization), run GEMM2 into <code>l2_acts</code>→<code>y</code>.</li>
+      <li><b>Combine warps</b> write finished expert outputs back to the origin rank/token via NVLink and accumulate with
+          <code>topk_weights</code>.</li>
+    </ul>
+    <p>Coordination is via the <code>Workspace</code> counters in the symmetric buffer (<span class="ref">layout/mega_moe.cuh:46</span>):
+    expert send/recv counts, ring full/empty block counts, NVLink barrier signals, and L1/L2 schedule task counters — all
+    laid out to avoid L2-line ping-ponging on hot atomics. The ring-buffer capacity (<code>num_ring_tokens</code>) is sized
+    so the math side never stalls waiting for tokens to arrive (<span class="ref">heuristics/mega_moe.hpp:115</span>).</p>
+  </div></div>
+
+  <div class="callout key">
+    <div class="ttl">Why "overlapped" matters</div>
+    <p style="margin:0">A naive MoE does dispatch → GEMM1 → act → GEMM2 → combine as four sequential steps, so the NVLink
+    is idle during math and the tensor cores are idle during communication. Mega MoE pipelines them: while GEMM1 computes
+    token-block <code>t</code>, dispatch is sending blocks <code>t+1,t+2</code> and combine is finishing blocks
+    <code>t-1</code>. On a multi-node EP this turns the communication from a serialization bottleneck into mostly-hidden
+    overhead — the headline latency win.</p>
+  </div>
+</section>
+
+<!-- ===================== 8. GLOSSARY ===================== -->
+<section id="glossary">
+  <h2 class="sec"><span class="num">08</span> Terminology Glossary</h2>
+  <p class="lead-sec">GPU-kernel jargon, defined for someone who knows CS but not CUDA. Roughly in the order you will meet them.</p>
+
+  <dl class="gloss">
+    <dt>GEMM</dt><dd>General Matrix Multiply. <code>D = C + A @ B</code>. The dominant compute kernel in deep learning.</dd>
+    <dt>NT / TN / NN / TT</dt><dd>The memory layout of the two operands: NT = A non-transposed (row-major), B transposed
+      (column-major). DeepGEMM's reference is NT: <code>[M,K] @ [N,K].T</code>. The others are implemented by transposing
+      operands and calling <code>_nt</code> (<span class="ref">gemm.hpp:126-164</span>).</dd>
+    <dt>Major (K-major / MN-major)</dt><dd>Which dimension is contiguous in memory. "K-major" = the K axis stride is 1
+      (row-major in the natural [M,K] view). Decides the TMA descriptor shape and the MMA descriptor type
+      (<span class="ref">utils/layout.hpp:21</span>).</dd>
+    <dt>FP8 E4M3</dt><dd>An 8-bit float with 4 exponent bits and 3 mantissa bits (±, E4M3). Max representable ≈ 448. Used for
+      activations and weights. Stored as <code>torch.float8_e4m3fn</code>.</dd>
+    <dt>FP4 E2M1</dt><dd>A 4-bit float (2 exponent, 1 mantissa). Max ≈ 6. Two FP4 values are packed into one byte
+      ("packed FP4", <code>int8</code>). DeepGEMM uses FP4 for MoE weights on SM100.</dd>
+    <dt>Scaling factor (SF / SFA / SFB)</dt><dd>A per-group multiplier that restores the real value from the quantized one:
+      <code>real ≈ fp8_value × sf</code>. SFA scales A (per-token rows), SFB scales B (per-channel columns). Stored separately
+      from the data as a small tensor.</dd>
+    <dt>UE8M0</dt><dd>"Unsigned Exponent, 8 bits, 0 mantissa bits" — a scaling factor that is a pure power of two
+      (<code>2^e</code>). It is just the 8 exponent bits of an IEEE float with a zero mantissa, so it can be packed four
+      per <code>int32</code>. SM100's block-scaled MMA consumes this format natively
+      (<span class="ref">utils/math.py:13-24</span>).</dd>
+    <dt>Recipe</dt><dd>A tuple <code>(gran_mn_A, gran_mn_B, gran_k)</code> giving the scaling-factor blocking: SFA is
+      quantized with one scale per <code>gran_mn_A</code> rows and <code>gran_k</code> K-elements. <code>(1,1,128)</code>
+      = "1D1D" (per-row on both sides); <code>(1,128,128)</code> = "1D2D".</dd>
+    <dt>1D1D / 1D2D kernel</dt><dd>The SF memory layout the kernel expects. 1D1D = both SFA and SFB are 1D (per-row) and
+      loaded with their own TMA. 1D2D = SFB is a 2D table (per-128-channel), kept in registers across the K-loop. SM100
+      standardizes on 1D1D; SM90 supports both (<span class="ref">gemm.hpp:110-117</span>).</dd>
+    <dt>Granularity (gran_k)</dt><dd>The K-axis size of one scaling group — almost always 128 (FP8 natural block) or 32 (FP4).</dd>
+    <dt>Tensor Cores</dt><dd>Dedicated matrix-multiply units on the GPU. Hopper's are driven by <b>WGMMA</b> ("warpgroup
+      MMA"); Blackwell's by <b>UMMA</b> ("unified MMA", which also has a block-scaled variant).</dd>
+    <dt>TMA</dt><dd>"Tensor Memory Accelerator" — a copy engine that moves 2D/3D tiles between HBM and shared memory
+      asynchronously, with hardware swizzling and out-of-bounds fill, described by a <code>CUtensorMap</code> descriptor.
+      Frees the SM to compute while data loads.</dd>
+    <dt>Swizzling</dt><dd>Reordering bytes within a shared-memory tile to avoid bank conflicts. Modes are 16/32/64/128B;
+      DeepGEMM requires ≥64B (128B for FP4) for performance (<span class="ref">heuristics/utils.hpp:13</span>).</dd>
+    <dt>Shared memory (smem)</dt><dd>Small, fast on-chip RAM shared by a thread block. The A/B/SF tiles live here between
+      TMA load and tensor-core consume; the epilogue stages results here before the TMA store.</dd>
+    <dt>Tensor memory (tmem)</dt><dd>Blackwell-specific on-chip storage dedicated to the tensor cores (distinct from smem).
+      UMMA accumulates here, and the block-scaled scales are loaded here via UTCCP.</dd>
+    <dt>Software pipelining / num_stages</dt><dd>Keeping N copies ("stages") of the A/B tile in smem so that while the math
+      consumes stage <code>s</code>, TMA loads stage <code>s+1…s+N</code>. Synchronized by full/empty async barriers.
+      More stages hide more latency but use more smem (<span class="ref">heuristics/sm90.hpp:148</span>).</dd>
+    <dt>Async barrier</dt><dd>A hardware synchronization primitive (<code>ClusterTransactionBarrier</code>): the producer
+      "arrives and expects N transaction bytes", the consumer "waits" until those bytes landed. Lets copy and math overlap
+      without a global <code>__syncthreads</code>.</dd>
+    <dt>Warpgroup</dt><dd>4 warps (128 threads) acting as one unit. WGMMA/UMMA operate at warpgroup granularity.</dd>
+    <dt>Cluster</dt><dd>A group of 2 (Hopper) or 2–4 (Blackwell) thread blocks that share distributed shared memory and can
+      TMA-multicast one load to all members. <code>cluster_m/n</code> in the Layout controls this.</dd>
+    <dt>PDL</dt><dd>"Programmatic Dependent Launch" — a launch attribute letting this kernel begin executing before the
+      previous one fully finishes, with an explicit <code>cudaGridDependencySynchronize()</code> handoff. Reduces gap
+      between back-to-back kernels (<code>set_pdl</code>, <span class="ref">handle.hpp:206</span>).</dd>
+    <dt>compiled_dims</dt><dd>Which of <code>m/n/k</code> are baked into the kernel as compile-time constants vs. runtime
+      args. <code>"nk"</code> = M and K are constants (one cubin per (M,K)); <code>""</code> = fully generic. More compiled
+      dims = faster but more cubins to cache (<span class="ref">runtime_utils.hpp:22</span>).</dd>
+    <dt>tc_util</dt><dd>"Tensor-core utilization" ratio (0–100). A runtime knob to throttle how many SMs run math, leaving
+      headroom for concurrent workloads (<span class="ref">device_runtime.hpp:118</span>).</dd>
+    <dt>MoE / Expert / Top-k</dt><dd>"Mixture of Experts": a layer where a router picks <code>topk</code> experts per token
+      and only those experts' FFN weights apply. "Routed" experts are partitioned across ranks (EP).</dd>
+    <dt>EP (Expert Parallel) / dispatch / combine</dt><dd>EP shards experts across GPUs. <b>Dispatch</b> = sending each
+      token to the rank(s) holding its chosen experts. <b>Combine</b> = gathering expert outputs back and summing with
+      <code>topk_weights</code>. These are the NVLink communication steps Mega MoE overlaps with math.</dd>
+    <dt>Symmetric memory</dt><dd>A buffer allocated identically on every rank and registered for direct peer-to-peer
+      access, so a kernel on rank A can read/write rank B's buffer over NVLink without going through a separate copy.</dd>
+    <dt>SwiGLU</dt><dd>The FFN activation <code>swish(W1·x) * (W3·x)</code>; implemented by interleaving gate/up weight rows
+      so one GEMM produces both halves (<span class="ref">mega/__init__.py:97</span>).</dd>
+    <dt>MQA / indexer</dt><dd>"Multi-Query Attention" with one KV head. DeepSeek v3.2's "lightning indexer" uses a
+      weighted-ReLU variant: <code>out[i,j] = Σ_h relu(q[i,h]·kv[j,h]) * w[i,h]</code>
+      (<span class="ref">apis/attention.hpp:76</span>).</dd>
+    <dt>HyperConnection (HC)</dt><dd>A normalization scheme; <code>tf32_hc_prenorm_gemm</code> fuses a TF32 GEMM with the
+      HC pre-normalization (<span class="ref">apis/hyperconnection.hpp</span>).</dd>
+    <dt>psum layout</dt><dd>"Partial-sum" contiguous layout for grouped GEMMs where group boundaries do not align to
+      <code>BLOCK_M</code>; padding rows are skipped via the scheduler (<span class="ref">scheduler/gemm.cuh:217</span>).</dd>
+  </dl>
+</section>
+
+<!-- ===================== 9. ENV VARS ===================== -->
+<section id="env">
+  <h2 class="sec"><span class="num">09</span> Environment Variables</h2>
+  <p class="lead-sec">All start with <code>DG_</code>. Set them in the shell or bake at build time (they persist via
+  <code>envs.py</code>).</p>
+  <table>
+    <tr><th>Variable</th><th>Effect</th><th>Where read</th></tr>
+    <tr><td><code>DG_JIT_CACHE_DIR</code></td><td>Override the default <code>~/.deep_gemm</code> cache root (useful on a shared FS).</td><td><span class="ref">compiler.hpp:50</span></td></tr>
+    <tr><td><code>DG_JIT_USE_NVRTC</code></td><td>Use in-process <code>nvrtc</code> instead of shelling out to <code>nvcc</code> (~10× faster compile, opt-in).</td><td><span class="ref">compiler.hpp:355</span></td></tr>
+    <tr><td><code>DG_JIT_CPP_STANDARD</code></td><td>C++ standard for the JIT source (default 20).</td><td><span class="ref">compiler.hpp:57</span></td></tr>
+    <tr><td><code>DG_JIT_NVCC_COMPILER</code></td><td>Path to a specific <code>nvcc</code>.</td><td><span class="ref">compiler.hpp:197</span></td></tr>
+    <tr><td><code>DG_JIT_DEBUG</code></td><td>Print compile commands, generated source, launch info, load times.</td><td>many</td></tr>
+    <tr><td><code>DG_JIT_PRINT_COMPILER_COMMAND</code></td><td>Print the <code>nvcc</code> command line.</td><td><span class="ref">compiler.hpp:154</span></td></tr>
+    <tr><td><code>DG_JIT_DUMP_ASM</code> / <code>DG_JIT_DUMP_SASS</code> / <code>DG_JIT_DUMP_PTX</code></td><td>Write disassembly/PTX into the cache dir for inspection.</td><td><span class="ref">compiler.hpp:116-127</span></td></tr>
+    <tr><td><code>DG_JIT_PTXAS_VERBOSE</code> / <code>DG_JIT_PTXAS_CHECK</code></td><td>Verbose ptxas log / assert no local-memory spill.</td><td><span class="ref">compiler.hpp:245</span></td></tr>
+    <tr><td><code>DG_JIT_WITH_LINEINFO</code></td><td>Add <code>-lineinfo</code> for profiler symbols.</td><td><span class="ref">compiler.hpp:60</span></td></tr>
+    <tr><td><code>DG_JIT_USE_RUNTIME_API</code></td><td>Build-time: prefer the CUDA <em>runtime</em> API (<code>cudaLaunchKernelExC</code>) over the driver API.</td><td><span class="ref">handle.hpp:48</span></td></tr>
+    <tr><td><code>DG_USE_PYTORCH_CUBLASLT_HANDLE</code></td><td>Use PyTorch's cuBLASLt handle instead of a self-managed one.</td><td><span class="ref">device_runtime.hpp:34</span></td></tr>
+    <tr><td><code>DG_COMM_KERNEL_DEBUG</code></td><td>Zero the symmetric buffer after each mega-MoE call (debug).</td><td><span class="ref">apis/mega.hpp:284</span></td></tr>
+  </table>
+  <p>Runtime knobs exposed as Python functions (not env vars): <code>set_num_sms</code>, <code>set_tc_util</code>,
+  <code>set_pdl</code>, <code>set_block_size_multiple_of</code>, <code>set_ignore_compile_dims</code>,
+  <code>set_mk_alignment_for_contiguous_layout</code> (<span class="ref">apis/runtime.hpp</span>,
+  <span class="ref">heuristics/runtime.hpp</span>).</p>
+</section>
+
+<!-- ===================== 10. EXPLORE ===================== -->
+<section id="explore">
+  <h2 class="sec"><span class="num">10</span> How to Explore Further</h2>
+  <p class="lead-sec">A suggested reading path through the source, from gentlest to deepest.</p>
+
+  <ol>
+    <li><b>Run a test.</b> <code>tests/test_fp8_fp4.py</code> shows the canonical quantize → GEMM → dequantize → compare
+        loop. <code>tests/test_mega_moe.py</code> shows the full multi-process Mega MoE setup. Run with
+        <code>DG_JIT_DEBUG=1</code> to see the generated source and launch config printed.</li>
+    <li><b>Read one API.</b> <span class="ref">csrc/apis/gemm.hpp:73</span> (<code>fp8_fp4_gemm_nt</code>) — it is the
+        template every other family follows: validate → transform SF → dispatch.</li>
+    <li><b>Read one launcher.</b> <span class="ref">csrc/jit_kernels/impls/sm90_fp8_gemm_1d1d.hpp</span> — the smallest
+        complete example of "heuristics → TMA → codegen → launch".</li>
+    <li><b>Read the JIT core.</b> <span class="ref">csrc/jit/compiler.hpp</span> + <span class="ref">kernel_runtime.hpp</span> +
+        <span class="ref">handle.hpp</span> — only ~600 lines total and self-contained.</li>
+    <li><b>Read one device kernel.</b> <span class="ref">deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh</span>
+        (357 lines) — the producer/consumer pipeline is clearest here because the promotion is in plain C++.</li>
+    <li><b>Then the SM100 counterpart.</b> <span class="ref">sm100_fp8_fp4_gemm_1d1d.cuh</span> to see how tmem + block-scaled
+        UMMA replaces the manual promotion.</li>
+    <li><b>Finally the mega-kernel.</b> <span class="ref">impls/sm100_fp8_fp4_mega_moe.cuh</span> — the culmination of
+        everything above (NVLink + two GEMMs + activation + combine in one grid).</li>
+  </ol>
+
+  <div class="callout key">
+    <div class="ttl">The mental model to hold onto</div>
+    <p style="margin:0;color:var(--ink)">DeepGEMM = <b>(a)</b> a small set of templated, near-optimal GPU kernels, where the
+    template parameters are the "interesting" tuning choices; <b>(b)</b> a host heuristic that picks those parameters per
+    shape; and <b>(c)</b> a runtime JIT that specializes and caches the kernel. Everything else — the Python package, the
+    SF layout transforms, the symmetric-memory orchestration — exists to feed correct, well-laid-out data into (a). When
+    something looks complicated, ask which of those three it belongs to.</p>
+  </div>
+
+  <hr class="sep">
+  <p style="color:var(--faint);font-size:13px">
+    Generated from the DeepGEMM source tree (v2.6.1, commit 559d79f). All file:line references are relative to the
+    repository root. This is an independent explanatory document, not an official DeepSeek/Anthropic product.
+  </p>
+</section>
+
+</main>
+</div>
+</body>
+</html>
